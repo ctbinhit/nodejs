@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>General room</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/jquery/jquery.min.js"></script>
+    <script src="/bootstrap/js/bootstrap.min.js"></script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script>
+        var socket = io("http://127.0.0.1:88");
+        // Listen result from server
+        socket.on("server-alert-user",function(data){
+          if(data.code==101){
+              $('#register-form').fadeOut();
+
+          }
+          // Send msg success
+          if(data.code==777){
+              setTimeout(function(){
+                $('#'+data.idMsg).removeClass('send');
+                $('#'+data.idMsg).addClass('sent');
+              },1*500)
+          }
+          // Someone disconnected
+          if(data.code==778){
+            var msg = "<div class='system_alert'>" + data.msg + "</div>";
+            $('.messages_area').append(msg);
+            var d = $('.messages_area');
+            d.animate({ scrollTop: d.prop('scrollHeight') }, 100);
+          }
+          // Someone connected
+          if(data.code==779){
+            if(socket.id != data.idSocket){
+              var msg = "<div class='system_alert'>" + data.msg + "</div>";
+              $('.messages_area').append(msg);
+              var d = $('.messages_area');
+              d.animate({ scrollTop: d.prop('scrollHeight') }, 100);
+            }
+            console.log(data);
+          }
+          //////////////////////////////////////////////////////////////////////
+          if(data.code==200){
+            $('#register-form').fadeOut();
+            $('#pan_chat').fadeIn();
+          }
+
+        })
+
+        ////////////////////////////////////////////////////////////////////////
+
+        function sendMsg(pId,pName,pMsg,pDate,pState = 'send'){
+
+          var msg = "<div class='msg "+pState+"' id='msg_"+pId+"_"+pDate+"'>";
+          msg += "<div class='msg_name'>"+pName+":</div>";
+          msg += "<div class='msg_body'>"+pMsg+"</div>";
+          msg += "</div>";
+          msg += "<div class='div_clearHeight'></div>";
+          $('.messages_area').append(msg);
+          var d = $('.messages_area');
+          d.animate({ scrollTop: d.prop('scrollHeight') }, 100);
+        }
+
+        // Server listen [server-update-msg]
+        //
+        socket.on("server-update-msg",(data)=>{
+          var data = data.data;
+          if(data.pId != socket.id){
+            sendMsg(data.pId,data.pName,data.pMsg,data.pSDate,'sent');
+          }
+
+          //sendMsg(data.id,data.name,data.msg,data.date);
+        });
+        // END server-update-msg
+
+
+        socket.on("server-change",function(data){
+          var s = "";
+          $('#lst_user').html("");
+          $.each(data.users,function(k,v){
+            $('#lst_user').append("<li socketid='"+v.id+"'>"+v.name+"</li>");
+          })
+        });
+
+        $(document).ready(function(){
+          $('#btn_register').click(function(){
+            // If txt_username is empty - return
+            if($('#txt_username').val()==''){
+              return;
+            };
+
+            socket.emit("client-send-sign-up-form",{
+              name : $('#txt_username').val()
+            });
+          })
+
+          $('#btn_send_msg').on('click',function(){
+            if($('#txt_message').val()==''){
+              return;
+            }
+            var d = new Date();
+            socket.emit("client-send-msg",{
+              msg : $('#txt_message').val(),
+              date  : d.getTime()
+            });
+            sendMsg(socket.id,"Me",$('#txt_message').val(),d.getTime());
+            $('#txt_message').val("");
+
+          })
+          $('#txt_message').keypress(function(e) {
+              if(e.which == 13) {
+                  $('#btn_send_msg').click();
+              }
+          });
+        });
+
+
+    </script>
+
+    <link href="/bootstrap/css/bootstrap.min.css" rel="stylesheet" type="text/css">
+    <style>
+      #pan_chat{
+        display: none;
+      }
+      .div_clearHeight{
+        width:100%;
+        height:1px;
+      }
+      .messages_area{
+        height:300px;
+        overflow-y: scroll;
+      }
+
+      .messages_area .msg{
+        background: #F1F0F0;
+        padding: 5px 10px;
+        border-radius: 5px 5px 5px 0px;
+        width: auto;
+        display: inline-block;
+        min-width: 20%; max-width: 80%;
+      }
+
+      .messages_area .send{
+        background: #A9A9A9;
+      }
+
+      .messages_area .sent{
+        background: #F1F0F0;
+      }
+
+      .messages_area .msg .msg_name{
+        font-weight:bold;
+        color: #F00;
+        display: inline-block;
+      }
+
+      .messages_area .msg .msg_body{
+        display: inline-block;
+        color: #000;
+      }
+      .messages_area .system_alert{
+        width:100%;
+        color:#999;
+
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="row">
+        <div class="col-mx-3 col-lg-3">
+          <h2>Users</h2>
+          <ul id="lst_user">
+          </ul>
+        </div>
+        <div class="col-lg-7">
+          <div class="row" id="register-form">
+            <div class="col-lg-12">
+              <div class="panel panel-primary">
+                <div class="panel-heading">Register a name to chat with peoples in this room.</div>
+                <div class="panel-body">
+                  <input type="text" class="form-control" id="txt_username" placeholder="Input your name...!">
+                </div>
+                <div class="panel-footer">
+                  <button type="button" class="btn btn-primary" id="btn_register">Chat now</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel panel-default">
+            <div class="panel-heading">
+              General room!
+            </div>
+            <div class="panel-body">
+              <div class="messages_area">
+                <div class="msg sent">
+                  <div class="msg_name">Robot</div>
+                  <div class="msg_body">
+                    Hello, Could you tell me what about yourself?
+                  </div>
+                </div>
+                <div class="div_clearHeight"></div>
+                <div class="system_alert">Robot has just disconnected.</div>
+
+              </div>
+            </div>
+            <div class="panel-footer" id="pan_chat">
+                <div class="row">
+                    <input class="form-control" style="width:80%;float:left" type="text" id="txt_message" name="txt_message">
+                    <button class="btn btn-primary" id="btn_send_msg" type="button">Send</button>
+                </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
